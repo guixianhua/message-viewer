@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Message Viewer</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github.min.css" id="hljs-light">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" id="hljs-dark" disabled>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown-dark.css" id="md-dark" disabled>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown-light.css" id="md-light">
+<style>
+:root {
+  --bg:#f0f2f5; --toolbar-bg:#fff; --toolbar-border:#e5e7eb; --pane-bg:#fff;
+  --editor-bg:#fafafa; --editor-text:#1f2328; --editor-line-nr:#9ca3af;
+  --editor-border:#e5e7eb; --gutter-bg:#f6f8fa; --text:#1d1d1f;
+  --text-secondary:#6b7280; --hint-text:#9ca3af; --msg-body-bg:#fff;
+  --shadow:rgba(0,0,0,.06); --code-bg:#f6f8fa; --badge-bg:#e5e7eb; --badge-text:#374151;
+  --scrollbar-thumb:#c1c1c1; --scrollbar-track:transparent;
+  --gn-bg:#fff; --gn-border:#d1d5db; --gn-row-border:#f0f0f0;
+  --gn-val-string:#0a3069; --gn-val-number:#0550ae; --gn-val-bool:#cf222e; --gn-val-null:#6e7781;
+  --gn-edge:#b0b0b0; --gn-dot:#888; --gn-summary:#6b7280;
+  --graph-bg:#e8eaed; --graph-ctrl-bg:#fff; --graph-ctrl-border:#e5e7eb;
+  --json-key:#0550ae; --popup-bg:#fff; --popup-overlay:rgba(0,0,0,.35);
+  --code-block-bg:#f6f8fa; --code-block-border:#e1e4e8; --code-block-text:#24292e;
+  --inline-code-bg:#eff1f3; --inline-code-text:#d63384; --inline-code-border:#d0d7de;
+}
+html.dark {
+  --bg:#0d1117; --toolbar-bg:#161b22; --toolbar-border:#30363d; --pane-bg:#0d1117;
+  --editor-bg:#161b22; --editor-text:#e6edf3; --editor-line-nr:#484f58;
+  --editor-border:#30363d; --gutter-bg:#0d1117; --text:#e6edf3;
+  --text-secondary:#8b949e; --hint-text:#484f58; --msg-body-bg:#161b22;
+  --shadow:rgba(0,0,0,.3); --code-bg:#161b22; --badge-bg:#30363d; --badge-text:#e6edf3;
+  --scrollbar-thumb:#484f58; --scrollbar-track:transparent;
+  --gn-bg:#1c2333; --gn-border:#30363d; --gn-row-border:#262d3a;
+  --gn-val-string:#a5d6ff; --gn-val-number:#79c0ff; --gn-val-bool:#ff7b72; --gn-val-null:#8b949e;
+  --gn-edge:#484f58; --gn-dot:#8b949e; --gn-summary:#8b949e;
+  --graph-bg:#010409; --graph-ctrl-bg:#161b22; --graph-ctrl-border:#30363d;
+  --json-key:#79c0ff; --popup-bg:#1c2333; --popup-overlay:rgba(0,0,0,.6);
+  --code-block-bg:#0d1117; --code-block-border:#30363d; --code-block-text:#e6edf3;
+  --inline-code-bg:#1c2333; --inline-code-text:#f78166; --inline-code-border:#30363d;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ─── Toolbar ─── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 80px;height:44px;min-height:44px;background:var(--toolbar-bg);border-bottom:1px solid var(--toolbar-border);z-index:10;-webkit-app-region:drag}
+.toolbar button,.toolbar *{-webkit-app-region:no-drag}
+.toolbar-left{display:flex;align-items:center;gap:12px}
+.toolbar-title{font-size:15px;font-weight:700;letter-spacing:-.2px}
+.format-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--badge-bg);color:var(--badge-text);text-transform:uppercase;letter-spacing:.3px;transition:background .2s,color .2s}
+.format-badge.fmt-chatml{background:#dbeafe;color:#1d4ed8}.format-badge.fmt-json{background:#fef3c7;color:#92400e}.format-badge.fmt-markdown{background:#dcfce7;color:#166534}
+html.dark .format-badge.fmt-chatml{background:#1e3a5f;color:#79c0ff}html.dark .format-badge.fmt-json{background:#422006;color:#fbbf24}html.dark .format-badge.fmt-markdown{background:#14532d;color:#4ade80}
+.toolbar-right{display:flex;align-items:center;gap:8px}
+.theme-toggle{display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--toolbar-border);background:transparent;color:var(--text-secondary);font-size:13px;transition:all .15s;user-select:none}
+.theme-toggle:hover{background:var(--badge-bg);color:var(--text)}.theme-toggle svg{width:16px;height:16px}
+.btn-extract{display:none;align-items:center;gap:6px;cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--toolbar-border);background:transparent;color:var(--text-secondary);font-size:13px;font-family:inherit;transition:all .15s;user-select:none}
+.btn-extract.visible{display:flex}
+.btn-extract:hover{background:var(--badge-bg);color:var(--text)}
+.btn-extract.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.btn-extract.active:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn-extract svg{width:14px;height:14px;stroke-width:2}
+.btn-extract .count{font-size:11px;opacity:.85;padding:0 5px;border-radius:8px;background:var(--badge-bg);color:var(--badge-text)}
+.btn-extract.active .count{background:rgba(255,255,255,.22);color:#fff}
+.json-view-btn.is-active{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.json-view-btn.is-active:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.agg-grid{display:flex;flex-direction:column;gap:12px}
+.agg-card{border:1px solid var(--toolbar-border);border-radius:8px;background:var(--pane-bg);overflow:hidden;box-shadow:0 1px 2px var(--shadow)}
+.agg-card-header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--toolbar-bg);border-bottom:1px solid var(--toolbar-border)}
+.agg-card-title{font-weight:600;font-size:13px;color:var(--text)}
+.agg-card-meta{font-size:11px;color:var(--text-secondary);font-family:"SF Mono","Fira Code",Menlo,monospace}
+.agg-card-loc{font-size:11px;color:var(--text-secondary);font-family:"SF Mono","Fira Code",Menlo,monospace;padding:1px 6px;border-radius:4px;background:var(--badge-bg);cursor:help}
+.agg-card-header .json-view-btn{margin-left:auto}
+.agg-card-body{padding:10px 14px;max-height:480px;overflow:auto}
+.agg-empty{padding:40px 16px;text-align:center;color:var(--text-secondary);font-size:13px}
+
+/* ─── Split panes ─── */
+.split-container{flex:1;display:flex;overflow:hidden}
+.pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.pane-header{display:flex;align-items:center;padding:6px 14px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);background:var(--toolbar-bg);border-bottom:1px solid var(--toolbar-border);min-height:30px}
+.divider{width:1px;background:var(--toolbar-border);cursor:col-resize;position:relative;flex-shrink:0}
+.divider::after{content:'';position:absolute;top:0;bottom:0;left:-3px;right:-3px}
+
+/* ─── Editor (left) ─── */
+.editor-wrap{flex:1;position:relative;overflow:hidden;display:flex}
+.line-numbers{padding:12px 0;min-width:44px;text-align:right;font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:13px;line-height:1.55;color:var(--editor-line-nr);background:var(--gutter-bg);border-right:1px solid var(--editor-border);user-select:none;overflow:hidden;flex-shrink:0}
+.line-numbers div{padding:0 10px 0 8px}
+.editor-textarea{flex:1;width:100%;padding:12px 14px;font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:13px;line-height:1.55;border:none;outline:none;resize:none;background:var(--editor-bg);color:var(--editor-text);tab-size:2;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;overflow:auto}
+.editor-textarea::placeholder{color:var(--hint-text)}
+.editor-textarea::-webkit-scrollbar{width:8px;height:8px}.editor-textarea::-webkit-scrollbar-track{background:var(--scrollbar-track)}.editor-textarea::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:4px}
+
+/* ─── Block view ─── */
+.preview-pane{flex:1;overflow-y:auto;padding:16px;background:var(--pane-bg)}
+.preview-pane::-webkit-scrollbar{width:8px}.preview-pane::-webkit-scrollbar-track{background:var(--scrollbar-track)}.preview-pane::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:4px}
+.output-section{display:flex;flex-direction:column;gap:12px}
+.msg-block{border-radius:8px;overflow:hidden;box-shadow:0 1px 3px var(--shadow)}
+.msg-header{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;user-select:none;transition:opacity .15s}
+.msg-header:hover{opacity:.85}
+.msg-header .channel-tag{font-size:10px;font-weight:500;text-transform:none;letter-spacing:0;padding:1px 7px;border-radius:3px;background:rgba(255,255,255,.2)}
+.msg-header .collapse-icon{margin-left:auto;font-size:14px;transition:transform .2s;line-height:1}
+.msg-header .collapse-icon.collapsed{transform:rotate(-90deg)}
+.msg-body{padding:12px 16px;background:var(--msg-body-bg);transition:max-height .25s ease,padding .25s ease,opacity .2s ease;overflow:hidden}
+.msg-body.collapsed-body{max-height:0!important;padding-top:0;padding-bottom:0;opacity:0}
+.msg-body.markdown-body{font-size:14px;line-height:1.7;background:var(--msg-body-bg)!important;color:var(--text)!important}
+.role-system .msg-header{background:#6b7280;color:#fff}.role-user .msg-header{background:#3b82f6;color:#fff}.role-assistant .msg-header{background:#10b981;color:#fff}.role-unknown .msg-header{background:#a78bfa;color:#fff}
+.raw-block{border-radius:8px;overflow:hidden;box-shadow:0 1px 3px var(--shadow)}.raw-block .msg-header{background:#6b7280;color:#fff}.raw-block .msg-body{background:var(--msg-body-bg)}
+.empty-hint{display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;color:var(--hint-text);font-size:14px;text-align:center;line-height:1.6}
+.markdown-body h1,.markdown-body h2,.markdown-body h3{border-bottom:none;margin-top:14px;margin-bottom:6px}
+.markdown-body h1:first-child,.markdown-body h2:first-child,.markdown-body h3:first-child{margin-top:0}
+.markdown-body hr{margin:14px 0}.markdown-body ul,.markdown-body ol{padding-left:1.5em}
+.markdown-body pre{background:var(--code-block-bg);border:1px solid var(--code-block-border);border-radius:8px;padding:14px 16px;overflow-x:auto;margin:10px 0}
+.markdown-body pre code{background:none;padding:0;font-size:13px;line-height:1.6;color:var(--code-block-text)}
+.markdown-body code{background:var(--inline-code-bg);color:var(--inline-code-text);padding:2px 6px;border-radius:4px;font-size:87%;border:1px solid var(--inline-code-border)}
+
+/* ─── Graph view ─── */
+.graph-container{flex:1;display:none;flex-direction:column;overflow:hidden;position:relative}
+.graph-container.active{display:flex}
+.graph-viewport{flex:1;overflow:hidden;background:var(--graph-bg);cursor:grab;position:relative}
+.graph-viewport.grabbing{cursor:grabbing}
+.graph-world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+.graph-svg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible}
+.graph-svg path{fill:none;stroke:var(--gn-edge);stroke-width:1.5;transition:stroke .12s,stroke-width .12s}
+/* Invisible thick path overlay so the edge is easy to click */
+.graph-svg path.edge-hit{stroke:transparent;stroke-width:14;pointer-events:stroke;cursor:pointer}
+.graph-svg path.edge-hit:hover + path.edge-vis,
+.graph-svg path.edge-vis.is-hover{stroke:#3b82f6;stroke-width:2.5}
+
+/* graph nodes */
+.gn{position:absolute;border-radius:8px;border:1px solid var(--gn-border);background:var(--gn-bg);box-shadow:0 2px 8px var(--shadow);font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:12px;overflow:visible}
+.gn-rows{display:flex;flex-direction:column}
+.gn-row{display:flex;align-items:center;padding:6px 14px;gap:10px;border-bottom:1px solid var(--gn-row-border);white-space:nowrap;position:relative;cursor:default;min-height:32px}
+.gn-row:last-child{border-bottom:none}
+.gn-row:first-child{border-radius:7px 7px 0 0}.gn-row:last-child{border-radius:0 0 7px 7px}
+.gn-row:first-child:last-child{border-radius:7px}
+.gn-row:hover{background:var(--gn-row-border)}
+.gn-row-key{color:var(--json-key);flex-shrink:0;font-weight:500}
+.gn-row-sep{color:var(--text-secondary);flex-shrink:0}
+.gn-row-val{overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.gn-row-val.t-string{color:var(--gn-val-string)}.gn-row-val.t-number{color:var(--gn-val-number)}.gn-row-val.t-bool{color:var(--gn-val-bool)}.gn-row-val.t-null{color:var(--gn-val-null)}
+.gn-row-val.t-summary{color:var(--gn-summary);font-style:italic}
+.gn-row-dot{position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;background:var(--gn-dot);border:2px solid var(--gn-bg);z-index:2}
+.gn-back-btn{position:absolute;left:-8px;top:-8px;width:18px;height:18px;border-radius:50%;background:var(--gn-bg);border:1px solid var(--gn-border);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;font-size:0;z-index:3;box-shadow:0 1px 3px var(--shadow);transition:background .12s,color .12s,border-color .12s}
+.gn-back-btn:hover{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.gn-back-btn svg{width:12px;height:12px;stroke-width:2.5}
+
+/* edge labels */
+.edge-label{position:absolute;font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:11px;color:var(--text-secondary);white-space:nowrap;pointer-events:none;transform:translateX(-50%)}
+
+/* graph controls */
+.graph-controls{display:flex;align-items:center;justify-content:center;gap:4px;padding:6px 12px;background:var(--graph-ctrl-bg);border-top:1px solid var(--graph-ctrl-border)}
+.graph-controls button{display:flex;align-items:center;justify-content:center;width:32px;height:28px;border:1px solid var(--graph-ctrl-border);border-radius:4px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:16px;transition:all .12s;padding:0}
+.graph-controls button:hover{background:var(--badge-bg);color:var(--text)}
+.graph-controls button svg{width:16px;height:16px}
+.graph-controls .sep{width:1px;height:18px;background:var(--graph-ctrl-border);margin:0 4px}
+
+/* ─── Popup modal ─── */
+.popup-overlay{position:absolute;inset:0;background:var(--popup-overlay);display:none;align-items:center;justify-content:center;z-index:100}
+.popup-overlay.active{display:flex}
+.popup-card{background:var(--popup-bg);border-radius:10px;border:1px solid var(--gn-border);width:90%;max-width:640px;max-height:80%;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.3);overflow:hidden}
+.popup-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--gn-border);flex-shrink:0}
+.popup-title{font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:13px;font-weight:600;color:var(--json-key)}
+.popup-close{width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.popup-close:hover{background:var(--badge-bg);color:var(--text)}
+.popup-body{flex:1;overflow:auto;padding:16px}
+.popup-body.markdown-body{font-size:14px;line-height:1.7;background:var(--popup-bg)!important;color:var(--text)!important}
+.popup-body pre{background:var(--code-bg);border-radius:6px;padding:12px;overflow-x:auto;font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all}
+.popup-body .json-hl-key{color:var(--json-key)}.popup-body .json-hl-str{color:var(--gn-val-string)}.popup-body .json-hl-num{color:var(--gn-val-number)}.popup-body .json-hl-bool{color:var(--gn-val-bool)}.popup-body .json-hl-null{color:var(--gn-val-null)}
+/* ─── Foldable JSON tree (used inside popup body) ─── */
+.ji-toolbar{display:flex;justify-content:flex-end;gap:6px;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--gn-row-border)}
+.ji-root{font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:12px;line-height:1.6;color:var(--text)}
+.ji-row{padding:1px 0 1px 18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ji-node{display:block}
+.ji-node > summary{cursor:pointer;user-select:none;list-style:none;padding:1px 0 1px 18px;position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:3px}
+.ji-node > summary::-webkit-details-marker{display:none}
+.ji-node > summary::marker{content:''}
+.ji-node > summary::before{content:'▾';position:absolute;left:4px;top:2px;color:var(--text-secondary);font-size:9px;line-height:1.6}
+.ji-node:not([open]) > summary::before{content:'▸'}
+.ji-node > summary:hover{background:var(--gn-row-border)}
+.ji-children{padding-left:12px;margin-left:7px;border-left:1px dashed var(--gn-row-border)}
+.ji-bracket{color:var(--text-secondary)}
+.ji-summary{color:var(--gn-summary);font-style:italic;margin:0 6px;font-size:11px}
+.ji-sep{color:var(--text-secondary);margin:0 4px 0 0}
+
+/* ─── Search bar ─── */
+.search-bar{display:none;position:absolute;top:8px;right:8px;z-index:50;background:var(--toolbar-bg);border:1px solid var(--toolbar-border);border-radius:8px;box-shadow:0 4px 16px var(--shadow);padding:6px 8px;gap:6px;align-items:center;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.search-bar.active{display:flex}
+.search-input{border:1px solid var(--toolbar-border);border-radius:5px;padding:4px 10px;font-size:13px;background:var(--editor-bg);color:var(--editor-text);outline:none;width:220px;font-family:inherit}
+.search-input:focus{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.2)}
+.search-counter{font-size:12px;color:var(--text-secondary);white-space:nowrap;min-width:48px;text-align:center}
+.search-btn{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid var(--toolbar-border);border-radius:5px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:14px;transition:all .12s;padding:0;flex-shrink:0}
+.search-btn:hover{background:var(--badge-bg);color:var(--text)}
+.search-btn svg{width:14px;height:14px}
+/* ─── Inline JSON-in-graph entry points ─── */
+.markdown-body pre{position:relative}
+.json-view-btn{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;border:1px solid var(--gn-border);background:var(--gn-bg);color:var(--text-secondary);font-size:11px;font-family:inherit;cursor:pointer;line-height:1.4;transition:background .12s,color .12s,border-color .12s;white-space:nowrap}
+.json-view-btn:hover{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.json-view-btn svg{width:12px;height:12px;stroke-width:2.5}
+.markdown-body pre > .json-view-btn{position:absolute;top:6px;right:6px;opacity:.85}
+.markdown-body pre:hover > .json-view-btn{opacity:1}
+.graph-return-btn{position:absolute;top:10px;left:10px;z-index:60;display:none;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;border:1px solid var(--toolbar-border);background:var(--toolbar-bg);color:var(--text);cursor:pointer;font-size:12px;font-family:inherit;box-shadow:0 2px 8px var(--shadow);transition:background .12s}
+.graph-return-btn.active{display:inline-flex}
+.graph-return-btn:hover{background:var(--badge-bg)}
+.graph-return-btn svg{width:14px;height:14px;stroke-width:2.5}
+mark.search-highlight{background:rgba(255,213,0,.35);color:inherit;padding:0;border-radius:2px}
+mark.search-highlight-current{background:rgba(255,165,0,.6);color:inherit;outline:2px solid rgba(255,165,0,.8);border-radius:2px}
+.gn.search-match{outline:2px solid rgba(255,213,0,.6);outline-offset:2px;box-shadow:0 0 12px rgba(255,213,0,.3)}
+.gn.search-match-current{outline:3px solid rgba(255,165,0,.9);outline-offset:2px;box-shadow:0 0 20px rgba(255,165,0,.5)}
+.gn-row.search-row-match{background:rgba(255,213,0,.2)}
+.gn-row.search-row-current{background:rgba(255,165,0,.35)}
+.popup-body mark.search-highlight{background:#ffe066;color:#000;padding:1px 2px;border-radius:2px;outline:2px solid #f59e0b}
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="toolbar-left">
+    <span class="toolbar-title">Message Viewer</span>
+    <span class="format-badge" id="formatBadge" style="display:none">-</span>
+  </div>
+  <div class="toolbar-right">
+    <button class="btn-extract" id="btnExtractJson" title="将文本中的 JSON 全部提取并聚合渲染">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H6a2 2 0 0 0-2 2v3"/><path d="M16 3h2a2 2 0 0 1 2 2v3"/><path d="M8 21H6a2 2 0 0 1-2-2v-3"/><path d="M16 21h2a2 2 0 0 0 2-2v-3"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="12" y1="9" x2="12" y2="15"/></svg>
+      <span id="extractLabel">聚合 JSON</span>
+      <span class="count" id="extractCount">0</span>
+    </button>
+    <button class="theme-toggle" id="themeToggle" title="切换主题">
+      <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <span id="themeLabel">深色</span>
+    </button>
+  </div>
+</div>
+
+<!-- Split panes -->
+<div class="split-container">
+  <div class="pane" id="leftPane" style="flex:none;width:28%">
+    <div class="pane-header">Input</div>
+    <div class="editor-wrap">
+      <div class="line-numbers" id="lineNumbers"><div>1</div></div>
+      <textarea class="editor-textarea" id="input" spellcheck="false"
+        placeholder="在此粘贴文本，支持自动识别：&#10;&#10;  ChatML  &lt;|im_start|&gt;user&lt;|im_message|&gt;...&#10;  JSON    [{&quot;role&quot;:&quot;user&quot;,&quot;content&quot;:&quot;...&quot;}]&#10;  Markdown  # Hello **world**"></textarea>
+    </div>
+  </div>
+  <div class="divider" id="divider"></div>
+  <div class="pane" id="rightPane" style="position:relative">
+    <div class="pane-header">Preview</div>
+    <!-- Search bar -->
+    <div class="search-bar" id="searchBar">
+      <input class="search-input" id="searchInput" type="text" placeholder="搜索…" autocomplete="off" spellcheck="false">
+      <span class="search-counter" id="searchCounter"></span>
+      <button class="search-btn" id="searchPrev" title="上一个 (Shift+Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
+      <button class="search-btn" id="searchNext" title="下一个 (Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <button class="search-btn" id="searchClose" title="关闭 (Esc)">&times;</button>
+    </div>
+    <div class="preview-pane" id="previewPane">
+      <div class="output-section" id="output">
+        <div class="empty-hint">在左侧输入内容，实时预览渲染结果</div>
+      </div>
+    </div>
+    <div class="graph-container" id="graphContainer">
+      <button class="graph-return-btn" id="btnReturnToText" title="返回文本视图">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>返回</span>
+      </button>
+      <div class="graph-viewport" id="graphViewport">
+        <div class="graph-world" id="graphWorld">
+          <svg class="graph-svg" id="graphSvg"></svg>
+        </div>
+        <!-- Popup overlay inside viewport for correct positioning -->
+        <div class="popup-overlay" id="popupOverlay">
+          <div class="popup-card">
+            <div class="popup-header">
+              <span class="popup-title" id="popupTitle"></span>
+              <button class="popup-close" id="popupClose">&times;</button>
+            </div>
+            <div class="popup-body" id="popupBody"></div>
+          </div>
+        </div>
+      </div>
+      <div class="graph-controls">
+        <button id="btnFitAll" title="查看全貌"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg></button>
+        <button id="btnCenterFirst" title="居中第一个元素"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <div class="sep"></div>
+        <button id="btnZoomOut" title="缩小"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button id="btnZoomIn" title="放大"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+marked.setOptions({ breaks: true, gfm: true });
+
+// Registry for JSON snippets found inside markdown/chatml. Each `jsonSnippets[id]`
+// is the parsed value; "View in graph" buttons reference it by id. A parallel
+// `jsonSnippetLocations[id]` holds {startLine,startCol,endLine,endCol} (1-indexed)
+// when the snippet was discovered in source text, or null otherwise.
+let jsonSnippets = [];
+let jsonSnippetLocations = [];
+function registerJsonSnippet(parsed, location = null) {
+  jsonSnippets.push(parsed);
+  jsonSnippetLocations.push(location);
+  return jsonSnippets.length - 1;
+}
+// Convert a byte offset within `raw` to a 1-indexed {line, col}.
+function offsetToLineCol(raw, offset) {
+  if (offset < 0) return null;
+  if (offset > raw.length) offset = raw.length;
+  let line = 1, col = 1;
+  for (let i = 0; i < offset; i++) {
+    if (raw.charCodeAt(i) === 10) { line++; col = 1; } else { col++; }
+  }
+  return { line, col };
+}
+function makeLocation(raw, start, end) {
+  const s = offsetToLineCol(raw, start);
+  const e = offsetToLineCol(raw, end);
+  if (!s || !e) return null;
+  return { startLine: s.line, startCol: s.col, endLine: e.line, endCol: e.col };
+}
+// Context used by renderer.code to resolve a fenced block's position in raw text.
+let _currentRaw = null;
+let _renderCursor = 0;
+function setMarkdownContext(raw) { _currentRaw = raw; _renderCursor = 0; }
+function clearMarkdownContext() { _currentRaw = null; _renderCursor = 0; }
+function viewGraphBtn(id) {
+  return `<button class="json-view-btn" data-snippet-id="${id}" title="在图中查看"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="18" y1="8" x2="18" y2="16"/></svg><span>图中查看</span></button>`;
+}
+
+// Custom renderer: add hljs class, and inject a "view in graph" button when the
+// fenced block is JSON (explicit lang or auto-parseable object/array).
+const renderer = new marked.Renderer();
+const origCodeRenderer = renderer.code;
+renderer.code = function({ text, lang }) {
+  const langClass = lang && hljs.getLanguage(lang) ? ` class="language-${lang}"` : '';
+  let highlighted;
+  if (lang && hljs.getLanguage(lang)) {
+    try { highlighted = hljs.highlight(text, { language: lang }).value; } catch (_) { highlighted = escapeHtml(text); }
+  } else {
+    try { highlighted = hljs.highlightAuto(text).value; } catch (_) { highlighted = escapeHtml(text); }
+  }
+  let btn = '';
+  const trimmed = text.trim();
+  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed !== null && typeof parsed === 'object') {
+        // Try to locate this fenced block's text inside the current markdown source,
+        // walking a cursor so duplicate blocks resolve to distinct positions.
+        let location = null;
+        if (_currentRaw) {
+          const idx = _currentRaw.indexOf(text, _renderCursor);
+          if (idx !== -1) {
+            location = makeLocation(_currentRaw, idx, idx + text.length);
+            _renderCursor = idx + text.length;
+          }
+        }
+        btn = viewGraphBtn(registerJsonSnippet(parsed, location));
+      }
+    } catch (_) {}
+  }
+  return `<pre><code${langClass}>${highlighted}</code></pre>`.replace('<pre>', btn ? `<pre>${btn}` : '<pre>');
+};
+marked.use({ renderer });
+
+// ─── Theme ───
+const htmlEl = document.documentElement;
+const themeToggle = document.getElementById('themeToggle');
+const themeLabel = document.getElementById('themeLabel');
+const iconSun = document.getElementById('iconSun');
+const iconMoon = document.getElementById('iconMoon');
+const mdDark = document.getElementById('md-dark');
+const mdLight = document.getElementById('md-light');
+const hljsDark = document.getElementById('hljs-dark');
+const hljsLight = document.getElementById('hljs-light');
+function setTheme(dark) {
+  htmlEl.classList.toggle('dark', dark); mdDark.disabled = !dark; mdLight.disabled = dark;
+  hljsDark.disabled = !dark; hljsLight.disabled = dark;
+  iconSun.style.display = dark ? 'none' : ''; iconMoon.style.display = dark ? '' : 'none';
+  themeLabel.textContent = dark ? '浅色' : '深色'; localStorage.setItem('theme', dark ? 'dark' : 'light');
+}
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const savedTheme = localStorage.getItem('theme');
+setTheme(savedTheme ? savedTheme === 'dark' : prefersDark);
+themeToggle.addEventListener('click', () => setTheme(!htmlEl.classList.contains('dark')));
+
+// ─── Divider drag ───
+const divider = document.getElementById('divider');
+const leftPane = document.getElementById('leftPane');
+const rightPane = document.getElementById('rightPane');
+let isDragging = false;
+divider.addEventListener('mousedown', e => { isDragging = true; document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'; e.preventDefault(); });
+document.addEventListener('mousemove', e => { if (!isDragging) return; const r = document.querySelector('.split-container').getBoundingClientRect(); const p = Math.max(15, Math.min(80, ((e.clientX - r.left) / r.width) * 100)); leftPane.style.flex = 'none'; leftPane.style.width = p + '%'; rightPane.style.flex = '1'; });
+document.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; } });
+
+// ─── Line numbers ───
+const inputEl = document.getElementById('input');
+const lineNumbersEl = document.getElementById('lineNumbers');
+function updateLineNumbers() { const n = inputEl.value.split('\n').length; let h = ''; for (let i = 1; i <= n; i++) h += `<div>${i}</div>`; lineNumbersEl.innerHTML = h; }
+inputEl.addEventListener('scroll', () => { lineNumbersEl.scrollTop = inputEl.scrollTop; });
+
+// ─── Format detection ───
+function detectFormat(t) {
+  t = t.trim();
+  // JSON detection first (stricter format - must be valid JSON)
+  if ((t[0] === '{' && t.at(-1) === '}') || (t[0] === '[' && t.at(-1) === ']')) {
+    try { JSON.parse(t); return 'json'; } catch (_) {}
+  }
+  // ChatML detection (only if not valid JSON)
+  if (t.includes('<|im_start|>')) return 'chatml';
+  return 'markdown';
+}
+
+// ─── ChatML parser ───
+function parseChatML(text) { const s = text.replace(/\\n/g, '\n'); const blocks = []; const re = /<\|im_start\|>(\w+)(?:<\|im_channel\|>([^<]*?))?(?:<\|im_message\|>|[\n ])([\s\S]*?)(?:<\|im_end\|>|$)/g; let last = 0, m; while ((m = re.exec(s)) !== null) { const b = s.slice(last, m.index).trim(); if (b) blocks.push({ type: 'raw', content: b }); blocks.push({ type: 'message', role: m[1].trim(), channel: m[2] ? m[2].trim() : null, content: m[3] }); last = m.index + m[0].length; } const r = s.slice(last).trim(); if (r) blocks.push({ type: 'raw', content: r }); if (!blocks.length) blocks.push({ type: 'raw', content: s.trim() }); return blocks; }
+
+// ─── Helpers ───
+function roleClass(r) { r = r.toLowerCase(); return r === 'system' ? 'role-system' : r === 'user' ? 'role-user' : r === 'assistant' ? 'role-assistant' : 'role-unknown'; }
+function roleName(r) { return { system: 'System', user: 'User', assistant: 'Assistant' }[r.toLowerCase()] || r; }
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+// Escape LLM-convention pseudo-tags (<think> <answer> <tool_call> …) before
+// markdown parsing so they appear as literal text rather than being swallowed
+// as unknown inline HTML. The content between them still flows through marked
+// as normal markdown.
+const LLM_TAG_RE = /<(\/?)(think|thinking|answer|tool_call|tool_response|tool_result|reflection|function_call|function_response|scratchpad)\b([^>]*)>/gi;
+function escapeLlmTags(s) { return s.replace(LLM_TAG_RE, '&lt;$1$2$3&gt;'); }
+function renderMarkdown(c) { return marked.parse(escapeLlmTags(c)); }
+function renderMessageBlock(role, channel, content) { const ch = channel ? `<span class="channel-tag">${escapeHtml(channel)}</span>` : ''; const body = typeof content === 'string' ? `<div class="msg-body markdown-body">${renderMarkdown(content)}</div>` : `<div class="msg-body" style="font-family:monospace;font-size:13px;white-space:pre-wrap;padding:12px 16px;background:var(--msg-body-bg)">${escapeHtml(JSON.stringify(content, null, 2))}</div>`; return `<div class="msg-block ${roleClass(role)}"><div class="msg-header" onclick="toggleCollapse(this)">${escapeHtml(roleName(role))}${ch}<span class="collapse-icon">▾</span></div>${body}</div>`; }
+function toggleCollapse(header) {
+  const icon = header.querySelector('.collapse-icon');
+  const body = header.nextElementSibling;
+  if (!body) return;
+  const isCollapsed = body.classList.toggle('collapsed-body');
+  icon.classList.toggle('collapsed', isCollapsed);
+}
+function tryParseJsonMessages(data) { let msgs = Array.isArray(data) ? data : (data && typeof data === 'object' && Array.isArray(data.messages)) ? data.messages : null; if (!msgs || !msgs.length) return null; return msgs.every(m => m && typeof m === 'object' && typeof m.role === 'string' && ('content' in m)) ? msgs : null; }
+
+// ═══════════════════════════════════════════════════════
+// ─── JSON Graph Engine ───
+// ═══════════════════════════════════════════════════════
+
+const GCFG = { ROW_H: 32, H_GAP: 90, V_GAP: 16, MAX_VAL_CHARS: 55 };
+let graphNodeId = 0;
+
+function fmtVal(v) {
+  if (v === null) return { text: 'null', cls: 't-null' };
+  if (typeof v === 'boolean') return { text: String(v), cls: 't-bool' };
+  if (typeof v === 'number') return { text: String(v), cls: 't-number' };
+  if (typeof v === 'string') {
+    const s = JSON.stringify(v);
+    const display = s.length > GCFG.MAX_VAL_CHARS ? s.slice(0, GCFG.MAX_VAL_CHARS - 1) + '…' : s;
+    return { text: display, cls: 't-string', full: s };
+  }
+  return { text: String(v), cls: 't-null' };
+}
+
+// If the string is a JSON-encoded object/array, return the parsed value; else null.
+// We only expand strings whose content is structured (object/array) — bare "42" or "true" stays a primitive.
+function tryParseJsonString(s) {
+  if (typeof s !== 'string') return null;
+  const t = s.trim();
+  if (t.length < 2) return null;
+  const a = t[0], b = t[t.length - 1];
+  if (!((a === '{' && b === '}') || (a === '[' && b === ']'))) return null;
+  try {
+    const parsed = JSON.parse(t);
+    if (parsed !== null && typeof parsed === 'object') return parsed;
+  } catch (_) {}
+  return null;
+}
+
+function buildGraphTree(data, key, parent) {
+  const node = { id: graphNodeId++, key, type: 'object', rows: [], children: [], parent: parent || null };
+  if (data === null || typeof data !== 'object') {
+    node.type = 'primitive';
+    const f = fmtVal(data);
+    node.rows.push({ key, displayVal: f.text, valCls: f.cls, fullVal: f.full || f.text, rawVal: data, childIdx: null });
+    return node;
+  }
+  node.type = Array.isArray(data) ? 'array' : 'object';
+  const entries = Array.isArray(data) ? data.map((v, i) => [String(i), v]) : Object.entries(data);
+  for (const [k, v] of entries) {
+    // Expand a string value if its content is structured JSON.
+    const expanded = typeof v === 'string' ? tryParseJsonString(v) : null;
+    const effective = expanded !== null ? expanded : v;
+    if (effective !== null && typeof effective === 'object') {
+      const isStr = expanded !== null;
+      const summary = Array.isArray(effective)
+        ? `[${effective.length} items]${isStr ? ' (json string)' : ''}`
+        : `{${Object.keys(effective).length} keys}${isStr ? ' (json string)' : ''}`;
+      const child = buildGraphTree(effective, k, node);
+      node.rows.push({ key: k, displayVal: summary, valCls: 't-summary', rawVal: effective, childIdx: node.children.length });
+      node.children.push(child);
+    } else {
+      const f = fmtVal(v);
+      node.rows.push({ key: k, displayVal: f.text, valCls: f.cls, fullVal: f.full || f.text, rawVal: v, childIdx: null });
+    }
+  }
+  if (!node.rows.length) node.rows.push({ key: '(empty)', displayVal: node.type === 'array' ? '[]' : '{}', valCls: 't-null', rawVal: null, childIdx: null });
+  return node;
+}
+
+function measureNodeWidth(node) {
+  let maxLen = 0;
+  for (const r of node.rows) {
+    const len = (r.key || '').length + 2 + (r.displayVal || '').length;
+    if (len > maxLen) maxLen = len;
+  }
+  return Math.max(180, Math.min(520, maxLen * 7.2 + 44));
+}
+
+function layoutTree(node) {
+  node.width = measureNodeWidth(node);
+  node.height = node.rows.length * GCFG.ROW_H;
+  node.children.forEach(c => layoutTree(c));
+  if (!node.children.length) { node.subtreeH = node.height; return; }
+  const totalCh = node.children.reduce((s, c) => s + c.subtreeH, 0) + (node.children.length - 1) * GCFG.V_GAP;
+  node.subtreeH = Math.max(node.height, totalCh);
+}
+
+function positionTree(node, x, y) {
+  node.x = x; node.y = y + (node.subtreeH - node.height) / 2;
+  if (!node.children.length) return;
+  const childX = x + node.width + GCFG.H_GAP;
+  const totalCh = node.children.reduce((s, c) => s + c.subtreeH, 0) + (node.children.length - 1) * GCFG.V_GAP;
+  let cy = y + Math.max(0, (node.subtreeH - totalCh) / 2);
+  node.children.forEach(child => { positionTree(child, childX, cy); cy += child.subtreeH + GCFG.V_GAP; });
+}
+
+// ─── Graph rendering ───
+const graphContainer = document.getElementById('graphContainer');
+const graphViewport = document.getElementById('graphViewport');
+const graphWorld = document.getElementById('graphWorld');
+const graphSvg = document.getElementById('graphSvg');
+const previewPane = document.getElementById('previewPane');
+let gScale = 1, gPanX = 0, gPanY = 0, gRoot = null, allNodes = [];
+
+function collectNodes(n, list) { list.push(n); n.children.forEach(c => collectNodes(c, list)); }
+
+function renderGraph(data) {
+  graphNodeId = 0;
+  gRoot = buildGraphTree(data, 'root');
+  layoutTree(gRoot);
+  positionTree(gRoot, 40, 40);
+  allNodes = []; collectNodes(gRoot, allNodes);
+
+  let maxX = 0, maxY = 0;
+  allNodes.forEach(n => { maxX = Math.max(maxX, n.x + n.width + 60); maxY = Math.max(maxY, n.y + n.height + 60); });
+  graphWorld.style.width = maxX + 'px'; graphWorld.style.height = maxY + 'px';
+
+  // Clear old content (preserve SVG element)
+  graphWorld.querySelectorAll('.gn, .edge-label').forEach(el => el.remove());
+
+  // Render nodes
+  const backIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
+  for (const node of allNodes) {
+    const el = document.createElement('div');
+    el.className = 'gn';
+    el.style.cssText = `left:${node.x}px;top:${node.y}px;width:${node.width}px`;
+    let rowsHtml = '';
+    node.rows.forEach((r, ri) => {
+      const hasChild = r.childIdx !== null;
+      const dot = hasChild ? '<span class="gn-row-dot"></span>' : '';
+      const title = r.fullVal && r.fullVal.length > GCFG.MAX_VAL_CHARS ? ` title="${escapeHtml(r.fullVal)}"` : '';
+      rowsHtml += `<div class="gn-row" data-node-id="${node.id}" data-row-idx="${ri}"><span class="gn-row-key">${escapeHtml(r.key)}</span><span class="gn-row-sep">:</span><span class="gn-row-val ${r.valCls}"${title}>${escapeHtml(r.displayVal)}</span>${dot}</div>`;
+    });
+    const backBtn = node.parent ? `<button class="gn-back-btn" data-parent-id="${node.parent.id}" title="返回父节点" aria-label="返回父节点">${backIcon}</button>` : '';
+    el.innerHTML = `${backBtn}<div class="gn-rows">${rowsHtml}</div>`;
+    graphWorld.appendChild(el);
+  }
+
+  // Render edges + labels — each edge has an invisible thick hit path + visible path.
+  let paths = '';
+  const labelEls = [];
+  for (const node of allNodes) {
+    node.rows.forEach((r, ri) => {
+      if (r.childIdx === null) return;
+      const child = node.children[r.childIdx];
+      const x1 = node.x + node.width + 4;
+      const y1 = node.y + ri * GCFG.ROW_H + GCFG.ROW_H / 2;
+      const x2 = child.x;
+      const y2 = child.y + child.height / 2;
+      const cp = GCFG.H_GAP * 0.5;
+      const d = `M${x1},${y1} C${x1 + cp},${y1} ${x2 - cp},${y2} ${x2},${y2}`;
+      paths += `<path class="edge-hit" data-child-id="${child.id}" d="${d}"><title>聚焦到「${escapeHtml(child.key)}」</title></path>`;
+      paths += `<path class="edge-vis" data-edge-for="${child.id}" d="${d}"/>`;
+      // Edge label
+      const lx = (x1 + x2) / 2;
+      const ly = (y1 + y2) / 2 - 10;
+      labelEls.push({ text: r.key, x: lx, y: ly });
+    });
+  }
+  graphSvg.innerHTML = paths;
+  graphSvg.setAttribute('width', maxX); graphSvg.setAttribute('height', maxY);
+  labelEls.forEach(l => {
+    const el = document.createElement('div');
+    el.className = 'edge-label';
+    el.style.cssText = `left:${l.x}px;top:${l.y}px`;
+    el.textContent = l.text;
+    graphWorld.appendChild(el);
+  });
+
+  fitAll();
+}
+
+function updateGraphTransform() { graphWorld.style.transform = `translate(${gPanX}px,${gPanY}px) scale(${gScale})`; }
+function fitAll() {
+  if (!allNodes.length) return;
+  const vp = graphViewport.getBoundingClientRect();
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  allNodes.forEach(n => { minX = Math.min(minX, n.x); minY = Math.min(minY, n.y); maxX = Math.max(maxX, n.x + n.width); maxY = Math.max(maxY, n.y + n.height); });
+  const pad = 50; gScale = Math.min((vp.width - pad * 2) / (maxX - minX), (vp.height - pad * 2) / (maxY - minY), 1.5);
+  gPanX = (vp.width - (maxX - minX) * gScale) / 2 - minX * gScale;
+  gPanY = (vp.height - (maxY - minY) * gScale) / 2 - minY * gScale;
+  updateGraphTransform();
+}
+function centerFirst() {
+  if (!gRoot) return;
+  const vp = graphViewport.getBoundingClientRect();
+  gScale = Math.max(0.4, Math.min(1, (vp.height - 60) / gRoot.height));
+  gPanX = vp.width * 0.06 - gRoot.x * gScale;
+  gPanY = (vp.height / 2) - (gRoot.y + gRoot.height / 2) * gScale;
+  updateGraphTransform();
+}
+
+// Smooth pan to put `node` near the center of the viewport, keeping current scale.
+let focusAnim = null;
+function focusNode(node) {
+  if (!node) return;
+  const vp = graphViewport.getBoundingClientRect();
+  const cx = node.x + node.width / 2;
+  const cy = node.y + node.height / 2;
+  const targetX = vp.width / 2 - cx * gScale;
+  const targetY = vp.height / 2 - cy * gScale;
+  animatePan(targetX, targetY, 300);
+}
+function animatePan(toX, toY, duration) {
+  if (focusAnim) cancelAnimationFrame(focusAnim);
+  const fromX = gPanX, fromY = gPanY, t0 = performance.now();
+  const ease = t => 1 - Math.pow(1 - t, 3); // easeOutCubic
+  function step(now) {
+    const t = Math.min(1, (now - t0) / duration);
+    const k = ease(t);
+    gPanX = fromX + (toX - fromX) * k;
+    gPanY = fromY + (toY - fromY) * k;
+    updateGraphTransform();
+    if (t < 1) focusAnim = requestAnimationFrame(step);
+    else focusAnim = null;
+  }
+  focusAnim = requestAnimationFrame(step);
+}
+
+// ─── Graph pan & zoom ───
+let gpDrag = false, gpSX = 0, gpSY = 0, gpOX = 0, gpOY = 0;
+graphViewport.addEventListener('mousedown', e => { if (e.button !== 0 || e.target.closest('.popup-overlay, path.edge-hit, .gn-back-btn')) return; gpDrag = true; gpSX = e.clientX; gpSY = e.clientY; gpOX = gPanX; gpOY = gPanY; graphViewport.classList.add('grabbing'); e.preventDefault(); });
+document.addEventListener('mousemove', e => { if (!gpDrag) return; gPanX = gpOX + (e.clientX - gpSX); gPanY = gpOY + (e.clientY - gpSY); updateGraphTransform(); });
+document.addEventListener('mouseup', () => { if (gpDrag) { gpDrag = false; graphViewport.classList.remove('grabbing'); } });
+graphViewport.addEventListener('wheel', e => { if (e.target.closest('.popup-overlay')) return; e.preventDefault(); const r = graphViewport.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top; const d = e.deltaY > 0 ? 0.9 : 1.1; const ns = Math.max(0.05, Math.min(5, gScale * d)); gPanX = mx - (mx - gPanX) * (ns / gScale); gPanY = my - (my - gPanY) * (ns / gScale); gScale = ns; updateGraphTransform(); }, { passive: false });
+
+document.getElementById('btnFitAll').addEventListener('click', fitAll);
+document.getElementById('btnCenterFirst').addEventListener('click', centerFirst);
+document.getElementById('btnZoomIn').addEventListener('click', () => { const r = graphViewport.getBoundingClientRect(); const cx = r.width / 2, cy = r.height / 2; const ns = Math.min(5, gScale * 1.25); gPanX = cx - (cx - gPanX) * (ns / gScale); gPanY = cy - (cy - gPanY) * (ns / gScale); gScale = ns; updateGraphTransform(); });
+document.getElementById('btnZoomOut').addEventListener('click', () => { const r = graphViewport.getBoundingClientRect(); const cx = r.width / 2, cy = r.height / 2; const ns = Math.max(0.05, gScale * 0.8); gPanX = cx - (cx - gPanX) * (ns / gScale); gPanY = cy - (cy - gPanY) * (ns / gScale); gScale = ns; updateGraphTransform(); });
+
+// ─── Popup (double-click) ───
+const popupOverlay = document.getElementById('popupOverlay');
+const popupTitle = document.getElementById('popupTitle');
+const popupBody = document.getElementById('popupBody');
+
+function highlightJsonHtml(obj, indent) {
+  indent = indent || 0;
+  const pad = '  '.repeat(indent), pad1 = '  '.repeat(indent + 1);
+  if (obj === null) return '<span class="json-hl-null">null</span>';
+  if (typeof obj === 'boolean') return `<span class="json-hl-bool">${obj}</span>`;
+  if (typeof obj === 'number') return `<span class="json-hl-num">${obj}</span>`;
+  if (typeof obj === 'string') return `<span class="json-hl-str">${escapeHtml(JSON.stringify(obj))}</span>`;
+  if (Array.isArray(obj)) {
+    if (!obj.length) return '[]';
+    return '[\n' + obj.map(item => pad1 + highlightJsonHtml(item, indent + 1)).join(',\n') + '\n' + pad + ']';
+  }
+  if (typeof obj === 'object') {
+    const keys = Object.keys(obj);
+    if (!keys.length) return '{}';
+    return '{\n' + keys.map(k => pad1 + `<span class="json-hl-key">${escapeHtml(JSON.stringify(k))}</span>: ` + highlightJsonHtml(obj[k], indent + 1)).join(',\n') + '\n' + pad + '}';
+  }
+  return escapeHtml(String(obj));
+}
+
+// Foldable inline JSON tree using <details>/<summary>. Root call: renderJsonTree(obj).
+function renderJsonTree(obj) { return `<div class="ji-root">${jtNode(obj, null)}</div>`; }
+function jtNode(val, key) {
+  const keyHtml = key === null ? '' :
+    `<span class="json-hl-key">${escapeHtml(typeof key === 'number' ? String(key) : JSON.stringify(key))}</span><span class="ji-sep">:</span>`;
+  if (val === null) return `<div class="ji-row">${keyHtml}<span class="json-hl-null">null</span></div>`;
+  if (typeof val === 'boolean') return `<div class="ji-row">${keyHtml}<span class="json-hl-bool">${val}</span></div>`;
+  if (typeof val === 'number') return `<div class="ji-row">${keyHtml}<span class="json-hl-num">${val}</span></div>`;
+  if (typeof val === 'string') return `<div class="ji-row">${keyHtml}<span class="json-hl-str">${escapeHtml(JSON.stringify(val))}</span></div>`;
+  if (Array.isArray(val)) {
+    if (!val.length) return `<div class="ji-row">${keyHtml}<span class="ji-bracket">[]</span></div>`;
+    const children = val.map((v, i) => jtNode(v, i)).join('');
+    return `<details class="ji-node" open><summary>${keyHtml}<span class="ji-bracket">[</span><span class="ji-summary">${val.length} items</span><span class="ji-bracket">]</span></summary><div class="ji-children">${children}</div></details>`;
+  }
+  // object
+  const keys = Object.keys(val);
+  if (!keys.length) return `<div class="ji-row">${keyHtml}<span class="ji-bracket">{}</span></div>`;
+  const children = keys.map(k => jtNode(val[k], k)).join('');
+  return `<details class="ji-node" open><summary>${keyHtml}<span class="ji-bracket">{</span><span class="ji-summary">${keys.length} keys</span><span class="ji-bracket">}</span></summary><div class="ji-children">${children}</div></details>`;
+}
+
+// Per-popup state for the "聚合 JSON" toggle. Lives only while the popup is open.
+// Shape: { originalHtml, originalClass, snippetIds, isAggregated } or null.
+let popupAggState = null;
+
+function popupAggToolbarHtml() {
+  if (!popupAggState || !popupAggState.snippetIds.length) return '';
+  const n = popupAggState.snippetIds.length;
+  const active = popupAggState.isAggregated;
+  const label = active ? '查看原文' : `聚合 JSON · ${n}`;
+  return `<div class="ji-toolbar"><button type="button" class="json-view-btn popup-agg-btn${active ? ' is-active' : ''}">${label}</button></div>`;
+}
+
+function togglePopupAggregate() {
+  if (!popupAggState) return;
+  popupAggState.isAggregated = !popupAggState.isAggregated;
+  if (popupAggState.isAggregated) {
+    popupBody.className = 'popup-body';
+    popupBody.innerHTML = popupAggToolbarHtml() + buildAggregatedCards(popupAggState.snippetIds);
+  } else {
+    popupBody.className = popupAggState.originalClass;
+    popupBody.innerHTML = popupAggToolbarHtml() + popupAggState.originalHtml;
+  }
+  highlightPopupSearch();
+}
+
+// Render markdown / chatml content into the popup while tracking which jsonSnippets
+// entries (both fenced via renderer.code and bare-text via scanBareJson) belong
+// to this popup. Returns { html, className }.
+function renderPopupTextContent(rawVal, isChatml) {
+  const startIdx = jsonSnippets.length;
+  let html, className;
+  setMarkdownContext(rawVal);
+  if (isChatml) {
+    className = 'popup-body';
+    const blocks = parseChatML(rawVal);
+    let inner = '';
+    for (const b of blocks) {
+      if (b.type === 'message') inner += renderMessageBlock(b.role, b.channel, b.content);
+      else inner += `<div class="raw-block"><div class="msg-header" style="background:#6b7280;color:#fff">Markdown</div><div class="msg-body markdown-body" style="background:var(--popup-bg)">${renderMarkdown(b.content)}</div></div>`;
+    }
+    html = `<div class="output-section">${inner}</div>`;
+  } else {
+    className = 'popup-body markdown-body';
+    html = renderMarkdown(rawVal);
+  }
+  clearMarkdownContext();
+  // Append bare-text JSON not already registered in this slice.
+  const sliceSeen = new Set(jsonSnippets.slice(startIdx).map(p => JSON.stringify(p)));
+  for (const { parsed, location } of scanBareJson(rawVal)) {
+    const k = JSON.stringify(parsed);
+    if (!sliceSeen.has(k)) { sliceSeen.add(k); registerJsonSnippet(parsed, location); }
+  }
+  const ids = [];
+  for (let i = startIdx; i < jsonSnippets.length; i++) ids.push(i);
+  popupAggState = { originalHtml: html, originalClass: className, snippetIds: ids, isAggregated: false };
+  return { html, className };
+}
+
+function showPopup(key, rawVal) {
+  popupTitle.textContent = key;
+  popupAggState = null;
+  if (typeof rawVal === 'string') {
+    const trimmed = rawVal.trim();
+    // 1. Try JSON
+    if ((trimmed[0] === '{' && trimmed.at(-1) === '}') || (trimmed[0] === '[' && trimmed.at(-1) === ']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        popupBody.className = 'popup-body';
+        popupBody.innerHTML = `<div class="ji-toolbar">${viewGraphBtn(registerJsonSnippet(parsed))}</div>${renderJsonTree(parsed)}`;
+        highlightPopupSearch();
+        popupOverlay.classList.add('active');
+        return;
+      } catch (_) {}
+    }
+    // 2. ChatML / 3. Markdown — both support the popup aggregate toggle.
+    const { html, className } = renderPopupTextContent(rawVal, rawVal.includes('<|im_start|>'));
+    popupBody.className = className;
+    popupBody.innerHTML = popupAggToolbarHtml() + html;
+  } else if (rawVal !== null && typeof rawVal === 'object') {
+    popupBody.className = 'popup-body';
+    popupBody.innerHTML = `<div class="ji-toolbar">${viewGraphBtn(registerJsonSnippet(rawVal))}</div>${renderJsonTree(rawVal)}`;
+  } else {
+    popupBody.className = 'popup-body';
+    const f = fmtVal(rawVal);
+    popupBody.innerHTML = `<pre><span class="${f.cls.replace('t-','json-hl-')}">${escapeHtml(String(rawVal))}</span></pre>`;
+  }
+  // Highlight search term in popup content
+  highlightPopupSearch();
+  popupOverlay.classList.add('active');
+}
+
+function highlightPopupSearch() {
+  const query = searchInput.value;
+  if (!query || !searchBar.classList.contains('active')) return;
+  const lq = query.toLowerCase();
+  const textNodes = getTextNodes(popupBody);
+  for (const tn of textNodes) {
+    const text = tn.textContent;
+    const lt = text.toLowerCase();
+    let idx = 0;
+    const parts = [];
+    let pos;
+    while ((pos = lt.indexOf(lq, idx)) !== -1) {
+      if (pos > idx) parts.push({ text: text.slice(idx, pos), match: false });
+      parts.push({ text: text.slice(pos, pos + query.length), match: true });
+      idx = pos + query.length;
+    }
+    if (!parts.length) continue;
+    if (idx < text.length) parts.push({ text: text.slice(idx), match: false });
+    const frag = document.createDocumentFragment();
+    for (const p of parts) {
+      if (p.match) {
+        const mark = document.createElement('mark');
+        mark.className = 'search-highlight';
+        mark.textContent = p.text;
+        frag.appendChild(mark);
+      } else {
+        frag.appendChild(document.createTextNode(p.text));
+      }
+    }
+    tn.parentNode.replaceChild(frag, tn);
+  }
+}
+
+function hidePopup() { popupOverlay.classList.remove('active'); }
+
+graphWorld.addEventListener('dblclick', e => {
+  const row = e.target.closest('.gn-row');
+  if (!row) return;
+  const nodeId = parseInt(row.dataset.nodeId);
+  const rowIdx = parseInt(row.dataset.rowIdx);
+  const node = allNodes.find(n => n.id === nodeId);
+  if (!node) return;
+  const r = node.rows[rowIdx];
+  showPopup(r.key, r.rawVal);
+});
+
+// Click an edge → focus child node. Click the back button → focus parent node.
+graphWorld.addEventListener('click', e => {
+  const edge = e.target.closest('path.edge-hit');
+  if (edge) {
+    const id = parseInt(edge.dataset.childId);
+    const node = allNodes.find(n => n.id === id);
+    if (node) focusNode(node);
+    return;
+  }
+  const back = e.target.closest('.gn-back-btn');
+  if (back) {
+    e.stopPropagation();
+    const id = parseInt(back.dataset.parentId);
+    const node = allNodes.find(n => n.id === id);
+    if (node) focusNode(node);
+  }
+});
+
+popupOverlay.addEventListener('click', e => { if (e.target === popupOverlay) hidePopup(); });
+document.getElementById('popupClose').addEventListener('click', hidePopup);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !searchBar.classList.contains('active')) hidePopup(); });
+
+// ═══════════════════════════════════════════════════════
+// ─── Main render ───
+// ═══════════════════════════════════════════════════════
+
+const badgeEl = document.getElementById('formatBadge');
+const outputEl = document.getElementById('output');
+function showBlockView() { previewPane.style.display = ''; graphContainer.classList.remove('active'); }
+function showGraphView() { previewPane.style.display = 'none'; graphContainer.classList.add('active'); }
+
+const returnBtn = document.getElementById('btnReturnToText');
+// Stack of views we've left to enter a snippet-graph view. Each click on a
+// "图中查看" button pushes the current view; each "返回" click pops one entry.
+// Entry shapes:
+//   { type:'block' }                                                — block view (markdown/chatml)
+//   { type:'main-graph', scale, panX, panY }                        — top-level graph from JSON input
+//   { type:'snippet',    scale, panX, panY, data }                  — a previous snippet graph
+let viewStack = [];
+let currentSnippetData = null;
+function viewJsonInGraph(parsed) {
+  // Snapshot the current view so we can return to it.
+  if (graphContainer.classList.contains('active')) {
+    const isSnippet = returnBtn.classList.contains('active');
+    viewStack.push({
+      type: isSnippet ? 'snippet' : 'main-graph',
+      scale: gScale, panX: gPanX, panY: gPanY,
+      data: isSnippet ? currentSnippetData : null,
+    });
+  } else {
+    viewStack.push({ type: 'block' });
+  }
+  hidePopup();
+  showGraphView();
+  renderGraph(parsed);
+  currentSnippetData = parsed;
+  returnBtn.classList.add('active');
+}
+function returnFromGraph() {
+  if (focusAnim) { cancelAnimationFrame(focusAnim); focusAnim = null; }
+  const prev = viewStack.pop();
+  if (!prev || prev.type === 'block') {
+    returnBtn.classList.remove('active');
+    currentSnippetData = null;
+    render(); // rebuilds block view (or main graph) from current input
+    return;
+  }
+  if (prev.type === 'snippet') {
+    // Stay in snippet mode: re-render the previous snippet and restore pan/zoom.
+    hidePopup();
+    showGraphView();
+    renderGraph(prev.data);
+    currentSnippetData = prev.data;
+    gScale = prev.scale; gPanX = prev.panX; gPanY = prev.panY;
+    updateGraphTransform();
+    // returnBtn stays active — there may be more to pop.
+    return;
+  }
+  // main-graph: rebuild from input, then restore exact pan/zoom.
+  returnBtn.classList.remove('active');
+  currentSnippetData = null;
+  render();
+  gScale = prev.scale; gPanX = prev.panX; gPanY = prev.panY;
+  updateGraphTransform();
+}
+returnBtn.addEventListener('click', returnFromGraph);
+
+// Delegate "view in graph" button clicks (works in output pane and popup body).
+// The popup aggregate toggle also carries .json-view-btn for styling but has no
+// data-snippet-id, so the lookup yields undefined and viewJsonInGraph is skipped.
+document.addEventListener('click', e => {
+  const aggBtn = e.target.closest('.popup-agg-btn');
+  if (aggBtn) { togglePopupAggregate(); return; }
+  const btn = e.target.closest('.json-view-btn');
+  if (!btn) return;
+  const id = parseInt(btn.dataset.snippetId);
+  const parsed = jsonSnippets[id];
+  if (parsed !== undefined) viewJsonInGraph(parsed);
+});
+
+// ─── Aggregate JSON view ───
+// Toggle (via the toolbar button) to replace markdown/chatml rendering with a
+// list of all detected JSON snippets, sorted by serialized size (desc).
+// Nested JSON inside another JSON is NOT re-extracted: the renderer.code hook
+// only registers each fenced code block once at its outermost level, and the
+// bare-text scanner below skips past the close of every match it finds.
+
+// Scan raw text for top-level JSON objects/arrays that live OUTSIDE fenced
+// code blocks. Skips fence ranges so we don't double-register fenced JSON.
+// Only "meaningful" structures are kept — empty {}/[] and single-primitive
+// arrays like [0]/[null] are dropped (otherwise stray brackets in log lines
+// would pollute the aggregated list).
+function findJsonEnd(s, start) {
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) { esc = false; continue; }
+      if (c === '\\') { esc = true; continue; }
+      if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') {
+      depth--;
+      if (depth === 0) return i + 1;
+      if (depth < 0) return -1;
+    }
+  }
+  return -1;
+}
+function isMeaningfulJson(v) {
+  if (v === null || typeof v !== 'object') return false;
+  if (Array.isArray(v)) {
+    if (v.length === 0) return false;
+    if (v.length === 1 && (v[0] === null || typeof v[0] !== 'object')) return false;
+    return true;
+  }
+  return Object.keys(v).length > 0;
+}
+function scanBareJson(raw) {
+  const ranges = [];
+  const fenceRe = /```[\s\S]*?```/g;
+  let fm;
+  while ((fm = fenceRe.exec(raw)) !== null) ranges.push([fm.index, fm.index + fm[0].length]);
+  const inFence = i => { for (const [a, b] of ranges) if (i >= a && i < b) return true; return false; };
+  const found = [];
+  let i = 0;
+  while (i < raw.length) {
+    const c = raw[i];
+    if ((c === '{' || c === '[') && !inFence(i)) {
+      const end = findJsonEnd(raw, i);
+      if (end > i) {
+        try {
+          const parsed = JSON.parse(raw.slice(i, end));
+          if (isMeaningfulJson(parsed)) {
+            found.push({ parsed, location: makeLocation(raw, i, end) });
+            i = end; continue;
+          }
+        } catch (_) {}
+      }
+    }
+    i++;
+  }
+  return found;
+}
+
+const extractBtn = document.getElementById('btnExtractJson');
+const extractLabel = document.getElementById('extractLabel');
+const extractCount = document.getElementById('extractCount');
+let aggregatedMode = false;
+
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+// Build aggregated-cards HTML from a list of snippet ids (indices into jsonSnippets).
+// The "图中查看" buttons reuse those ids so clicks go through the normal viewJsonInGraph flow.
+function buildAggregatedCards(ids) {
+  if (!ids.length) return '<div class="agg-empty">未检测到 JSON</div>';
+  const items = ids.map(id => ({
+    id, parsed: jsonSnippets[id], size: JSON.stringify(jsonSnippets[id]).length,
+  }));
+  items.sort((a, b) => b.size - a.size);
+  return `<div class="agg-grid">${items.map((it, rank) => {
+    const isArr = Array.isArray(it.parsed);
+    const typeLabel = isArr ? `array · ${it.parsed.length} items` : `object · ${Object.keys(it.parsed).length} keys`;
+    const loc = jsonSnippetLocations[it.id];
+    const locHtml = loc
+      ? `<span class="agg-card-loc" title="原文位置（行:列）">L${loc.startLine}:${loc.startCol} → L${loc.endLine}:${loc.endCol}</span>`
+      : '';
+    return `<div class="agg-card">
+      <div class="agg-card-header">
+        <span class="agg-card-title">#${rank + 1}</span>
+        <span class="agg-card-meta">${fmtBytes(it.size)} · ${typeLabel}</span>
+        ${locHtml}
+        ${viewGraphBtn(it.id)}
+      </div>
+      <div class="agg-card-body">${renderJsonTree(it.parsed)}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderAggregatedView() {
+  if (!jsonSnippets.length) return '<div class="agg-empty">未在文本的代码块中检测到 JSON</div>';
+  return buildAggregatedCards(jsonSnippets.map((_, i) => i));
+}
+
+function updateExtractBtn(format) {
+  const supported = format === 'markdown' || format === 'chatml';
+  const n = jsonSnippets.length;
+  if (supported && (n > 0 || aggregatedMode)) {
+    extractBtn.classList.add('visible');
+  } else {
+    extractBtn.classList.remove('visible');
+  }
+  extractBtn.classList.toggle('active', aggregatedMode);
+  extractLabel.textContent = aggregatedMode ? '查看原文' : '聚合 JSON';
+  extractCount.textContent = n;
+  extractCount.style.display = n > 0 ? '' : 'none';
+}
+
+extractBtn.addEventListener('click', () => {
+  aggregatedMode = !aggregatedMode;
+  render();
+});
+
+function render() {
+  searchMatches = []; searchIdx = -1;
+  jsonSnippets = [];
+  jsonSnippetLocations = [];
+  // Input-driven renders always reset the snippet stack. returnFromGraph()
+  // pops/restores stack state itself before calling render(), so clearing here
+  // is safe for that path too.
+  viewStack = [];
+  currentSnippetData = null;
+  returnBtn.classList.remove('active');
+  const raw = inputEl.value; updateLineNumbers();
+  if (!raw.trim()) {
+    badgeEl.style.display = 'none';
+    showBlockView();
+    outputEl.innerHTML = '<div class="empty-hint">在左侧输入内容，实时预览渲染结果</div>';
+    aggregatedMode = false;
+    updateExtractBtn(null);
+    return;
+  }
+  const format = detectFormat(raw);
+  badgeEl.style.display = ''; badgeEl.textContent = { chatml: 'ChatML', json: 'JSON', markdown: 'Markdown' }[format]; badgeEl.className = 'format-badge fmt-' + format;
+  if (format === 'json') {
+    aggregatedMode = false;
+    const data = JSON.parse(raw.trim());
+    const messages = tryParseJsonMessages(data);
+    if (messages) { showBlockView(); let h = ''; for (const msg of messages) h += renderMessageBlock(msg.role, null, msg.content != null ? msg.content : ''); outputEl.innerHTML = h; }
+    else { showGraphView(); renderGraph(data); }
+    updateExtractBtn(format);
+    return;
+  }
+  showBlockView(); let html = '';
+  setMarkdownContext(raw);
+  if (format === 'chatml') { const blocks = parseChatML(raw); for (const b of blocks) { if (b.type === 'message') html += renderMessageBlock(b.role, b.channel, b.content); else html += `<div class="raw-block"><div class="msg-header">Markdown</div><div class="msg-body markdown-body">${renderMarkdown(b.content)}</div></div>`; } }
+  else { html += `<div class="raw-block"><div class="msg-header">Markdown</div><div class="msg-body markdown-body">${renderMarkdown(raw)}</div></div>`; }
+  clearMarkdownContext();
+  outputEl.innerHTML = html;
+  // jsonSnippets now contains all fenced-block JSON (via renderer.code).
+  // Append JSON found in bare text (outside fences) for the aggregator. We do
+  // this AFTER the markdown pass so fenced indices used by inline buttons stay
+  // valid; bare-text matches are appended with fresh ids and dedup'd against
+  // existing entries by serialized form.
+  const seen = new Set(jsonSnippets.map(p => JSON.stringify(p)));
+  for (const { parsed, location } of scanBareJson(raw)) {
+    const k = JSON.stringify(parsed);
+    if (!seen.has(k)) { seen.add(k); registerJsonSnippet(parsed, location); }
+  }
+  // Swap to aggregated cards if the user has toggled aggregated mode.
+  if (aggregatedMode) outputEl.innerHTML = renderAggregatedView();
+  updateExtractBtn(format);
+}
+
+let debounceTimer = null;
+inputEl.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(render, 150); });
+updateLineNumbers();
+
+// ═══════════════════════════════════════════════════════
+// ─── Search (Cmd+F) ───
+// ═══════════════════════════════════════════════════════
+
+const searchBar = document.getElementById('searchBar');
+const searchInput = document.getElementById('searchInput');
+const searchCounter = document.getElementById('searchCounter');
+let searchMatches = []; // array of { el, type } - el is <mark> or .gn element
+let searchIdx = -1;
+let searchDebounce = null;
+
+function isGraphActive() { return graphContainer.classList.contains('active'); }
+
+// ── Block view: text node walking & highlighting ──
+
+function getTextNodes(root) {
+  const nodes = [];
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  let n;
+  while (n = walk.nextNode()) nodes.push(n);
+  return nodes;
+}
+
+function clearBlockHighlights() {
+  const marks = previewPane.querySelectorAll('mark.search-highlight');
+  marks.forEach(m => {
+    const parent = m.parentNode;
+    parent.replaceChild(document.createTextNode(m.textContent), m);
+    parent.normalize();
+  });
+}
+
+function searchBlockView(query) {
+  clearBlockHighlights();
+  searchMatches = [];
+  if (!query) return;
+  const lq = query.toLowerCase();
+  const textNodes = getTextNodes(outputEl);
+  for (const tn of textNodes) {
+    const text = tn.textContent;
+    const lt = text.toLowerCase();
+    let idx = 0;
+    const parts = [];
+    let pos;
+    while ((pos = lt.indexOf(lq, idx)) !== -1) {
+      if (pos > idx) parts.push({ text: text.slice(idx, pos), match: false });
+      parts.push({ text: text.slice(pos, pos + query.length), match: true });
+      idx = pos + query.length;
+    }
+    if (!parts.length) continue;
+    if (idx < text.length) parts.push({ text: text.slice(idx), match: false });
+    const frag = document.createDocumentFragment();
+    for (const p of parts) {
+      if (p.match) {
+        const mark = document.createElement('mark');
+        mark.className = 'search-highlight';
+        mark.textContent = p.text;
+        frag.appendChild(mark);
+        searchMatches.push({ el: mark, type: 'block' });
+      } else {
+        frag.appendChild(document.createTextNode(p.text));
+      }
+    }
+    tn.parentNode.replaceChild(frag, tn);
+  }
+}
+
+// ── Graph view: node matching ──
+
+function clearGraphHighlights() {
+  graphWorld.querySelectorAll('.gn.search-match, .gn.search-match-current').forEach(el => {
+    el.classList.remove('search-match', 'search-match-current');
+  });
+  graphWorld.querySelectorAll('.gn-row.search-row-match, .gn-row.search-row-current').forEach(el => {
+    el.classList.remove('search-row-match', 'search-row-current');
+  });
+}
+
+function searchGraphView(query) {
+  clearGraphHighlights();
+  searchMatches = [];
+  if (!query || !allNodes.length) return;
+  const lq = query.toLowerCase();
+  const gnEls = graphWorld.querySelectorAll('.gn');
+  allNodes.forEach((node, ni) => {
+    if (!gnEls[ni]) return;
+    const rowEls = gnEls[ni].querySelectorAll('.gn-row');
+    node.rows.forEach((r, ri) => {
+      const keyMatch = r.key && r.key.toLowerCase().includes(lq);
+      const valMatch = r.displayVal && r.displayVal.toLowerCase().includes(lq);
+      const fullMatch = r.fullVal && r.fullVal.toLowerCase().includes(lq);
+      const rawStrMatch = typeof r.rawVal === 'string' && r.rawVal.toLowerCase().includes(lq);
+      if (keyMatch || valMatch || fullMatch || rawStrMatch) {
+        if (rowEls[ri]) {
+          rowEls[ri].classList.add('search-row-match');
+          gnEls[ni].classList.add('search-match');
+          searchMatches.push({ el: rowEls[ri], gnEl: gnEls[ni], type: 'graph', node, rowIdx: ri });
+        }
+      }
+    });
+  });
+}
+
+// ── Navigation ──
+
+function updateSearchUI() {
+  if (!searchMatches.length) {
+    searchCounter.textContent = searchInput.value ? '0/0' : '';
+    return;
+  }
+  searchCounter.textContent = `${searchIdx + 1}/${searchMatches.length}`;
+}
+
+function goToMatch(idx) {
+  if (!searchMatches.length) return;
+  // Remove current highlight from previous
+  if (searchIdx >= 0 && searchIdx < searchMatches.length) {
+    const prev = searchMatches[searchIdx];
+    if (prev.type === 'block') prev.el.classList.remove('search-highlight-current');
+    else {
+      prev.el.classList.remove('search-row-current');
+      prev.gnEl.classList.remove('search-match-current');
+    }
+  }
+  searchIdx = ((idx % searchMatches.length) + searchMatches.length) % searchMatches.length;
+  const cur = searchMatches[searchIdx];
+  if (cur.type === 'block') {
+    cur.el.classList.add('search-highlight-current');
+    cur.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else {
+    cur.el.classList.add('search-row-current');
+    cur.gnEl.classList.add('search-match-current');
+    // Pan graph to center on matching node
+    const node = cur.node;
+    const rowY = node.y + cur.rowIdx * GCFG.ROW_H + GCFG.ROW_H / 2;
+    const vp = graphViewport.getBoundingClientRect();
+    gScale = Math.max(gScale, 0.6);
+    gPanX = vp.width / 2 - (node.x + node.width / 2) * gScale;
+    gPanY = vp.height / 2 - rowY * gScale;
+    updateGraphTransform();
+  }
+  updateSearchUI();
+}
+
+function performSearch() {
+  const query = searchInput.value;
+  if (isGraphActive()) searchGraphView(query);
+  else searchBlockView(query);
+  searchIdx = -1;
+  if (searchMatches.length) goToMatch(0);
+  updateSearchUI();
+}
+
+function openSearch() {
+  searchBar.classList.add('active');
+  searchInput.focus();
+  searchInput.select();
+}
+
+function closeSearch() {
+  searchBar.classList.remove('active');
+  searchInput.value = '';
+  clearBlockHighlights();
+  clearGraphHighlights();
+  searchMatches = [];
+  searchIdx = -1;
+  searchCounter.textContent = '';
+}
+
+// ── Event listeners ──
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(performSearch, 120);
+});
+
+document.getElementById('searchNext').addEventListener('click', () => {
+  if (searchMatches.length) goToMatch(searchIdx + 1);
+});
+document.getElementById('searchPrev').addEventListener('click', () => {
+  if (searchMatches.length) goToMatch(searchIdx - 1);
+});
+document.getElementById('searchClose').addEventListener('click', closeSearch);
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (searchMatches.length) goToMatch(e.shiftKey ? searchIdx - 1 : searchIdx + 1);
+  }
+  if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
+});
+
+// Global Cmd+F / Ctrl+F
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+    e.preventDefault();
+    openSearch();
+    // Re-run search if there's already a query
+    if (searchInput.value) performSearch();
+  }
+  if (e.key === 'Escape' && searchBar.classList.contains('active')) {
+    e.preventDefault(); e.stopPropagation();
+    closeSearch();
+  }
+}, true);
+</script>
+</body>
+</html>

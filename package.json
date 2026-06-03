@@ -1,0 +1,41 @@
+{
+  "name": "message-viewer",
+  "version": "1.0.0",
+  "description": "Local viewer for ChatML / JSON / Markdown messages.",
+  "main": "electron/main.js",
+  "scripts": {
+    "inline": "node electron/inline-cdn.js",
+    "start": "npm run inline && electron .",
+    "dist": "npm run inline && electron-builder --mac",
+    "dist:win": "npm run inline && electron-builder --win",
+    "dist:all": "npm run inline && electron-builder --mac --win"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.local.message-viewer",
+    "productName": "Message Viewer",
+    "directories": { "output": "release" },
+    "files": [
+      "electron/main.js",
+      "build/message-viewer.html",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
+      "identity": null
+    },
+    "win": {
+      "target": [
+        { "target": "zip", "arch": ["x64", "arm64"] },
+        { "target": "portable", "arch": ["x64", "arm64"] }
+      ]
+    }
+  }
+}
