@@ -71,7 +71,7 @@ html.dark .format-badge.fmt-chatml{background:#1e3a5f;color:#79c0ff}html.dark .f
 .agg-card-title{font-weight:600;font-size:13px;color:var(--text)}
 .agg-card-meta{font-size:11px;color:var(--text-secondary);font-family:"SF Mono","Fira Code",Menlo,monospace}
 .agg-card-loc{font-size:11px;color:var(--text-secondary);font-family:"SF Mono","Fira Code",Menlo,monospace;padding:1px 6px;border-radius:4px;background:var(--badge-bg);cursor:help}
-.agg-card-header .json-view-btn{margin-left:auto}
+.agg-card-header .json-view-btn[data-copy-id]{margin-left:auto}
 .agg-card-body{padding:10px 14px;max-height:480px;overflow:auto}
 .agg-empty{padding:40px 16px;text-align:center;color:var(--text-secondary);font-size:13px}
 
@@ -196,7 +196,9 @@ html.dark .format-badge.fmt-chatml{background:#1e3a5f;color:#79c0ff}html.dark .f
 .json-view-btn{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;border:1px solid var(--gn-border);background:var(--gn-bg);color:var(--text-secondary);font-size:11px;font-family:inherit;cursor:pointer;line-height:1.4;transition:background .12s,color .12s,border-color .12s;white-space:nowrap}
 .json-view-btn:hover{background:#3b82f6;border-color:#3b82f6;color:#fff}
 .json-view-btn svg{width:12px;height:12px;stroke-width:2.5}
-.markdown-body pre > .json-view-btn{position:absolute;top:6px;right:6px;opacity:.85}
+.markdown-body pre > .json-view-btn{position:absolute;top:6px;opacity:.85}
+.markdown-body pre > .json-view-btn[data-snippet-id]{right:6px}
+.markdown-body pre > .json-view-btn[data-copy-id]{right:92px}
 .markdown-body pre:hover > .json-view-btn{opacity:1}
 .graph-return-btn{position:absolute;top:10px;left:10px;z-index:60;display:none;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;border:1px solid var(--toolbar-border);background:var(--toolbar-bg);color:var(--text);cursor:pointer;font-size:12px;font-family:inherit;box-shadow:0 2px 8px var(--shadow);transition:background .12s}
 .graph-return-btn.active{display:inline-flex}
@@ -325,6 +327,9 @@ let _currentRaw = null;
 let _renderCursor = 0;
 function setMarkdownContext(raw) { _currentRaw = raw; _renderCursor = 0; }
 function clearMarkdownContext() { _currentRaw = null; _renderCursor = 0; }
+function copyJsonBtn(id) {
+  return `<button class="json-view-btn" data-copy-id="${id}" title="复制 JSON"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>复制</span></button>`;
+}
 function viewGraphBtn(id) {
   return `<button class="json-view-btn" data-snippet-id="${id}" title="在图中查看"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="18" y1="8" x2="18" y2="16"/></svg><span>图中查看</span></button>`;
 }
@@ -357,7 +362,8 @@ renderer.code = function({ text, lang }) {
             _renderCursor = idx + text.length;
           }
         }
-        btn = viewGraphBtn(registerJsonSnippet(parsed, location));
+        const sid = registerJsonSnippet(parsed, location);
+        btn = copyJsonBtn(sid) + viewGraphBtn(sid);
       }
     } catch (_) {}
   }
@@ -776,8 +782,9 @@ function showPopup(key, rawVal) {
     if ((trimmed[0] === '{' && trimmed.at(-1) === '}') || (trimmed[0] === '[' && trimmed.at(-1) === ']')) {
       try {
         const parsed = JSON.parse(trimmed);
+        const sid = registerJsonSnippet(parsed);
         popupBody.className = 'popup-body';
-        popupBody.innerHTML = `<div class="ji-toolbar">${viewGraphBtn(registerJsonSnippet(parsed))}</div>${renderJsonTree(parsed)}`;
+        popupBody.innerHTML = `<div class="ji-toolbar">${copyJsonBtn(sid)}${viewGraphBtn(sid)}</div>${renderJsonTree(parsed)}`;
         highlightPopupSearch();
         popupOverlay.classList.add('active');
         return;
@@ -788,8 +795,9 @@ function showPopup(key, rawVal) {
     popupBody.className = className;
     popupBody.innerHTML = popupAggToolbarHtml() + html;
   } else if (rawVal !== null && typeof rawVal === 'object') {
+    const sid = registerJsonSnippet(rawVal);
     popupBody.className = 'popup-body';
-    popupBody.innerHTML = `<div class="ji-toolbar">${viewGraphBtn(registerJsonSnippet(rawVal))}</div>${renderJsonTree(rawVal)}`;
+    popupBody.innerHTML = `<div class="ji-toolbar">${copyJsonBtn(sid)}${viewGraphBtn(sid)}</div>${renderJsonTree(rawVal)}`;
   } else {
     popupBody.className = 'popup-body';
     const f = fmtVal(rawVal);
@@ -937,6 +945,18 @@ returnBtn.addEventListener('click', returnFromGraph);
 // The popup aggregate toggle also carries .json-view-btn for styling but has no
 // data-snippet-id, so the lookup yields undefined and viewJsonInGraph is skipped.
 document.addEventListener('click', e => {
+  const copyBtn = e.target.closest('[data-copy-id]');
+  if (copyBtn) {
+    const id = parseInt(copyBtn.dataset.copyId);
+    const parsed = jsonSnippets[id];
+    if (parsed === undefined) return;
+    navigator.clipboard.writeText(JSON.stringify(parsed, null, 2)).then(() => {
+      const span = copyBtn.querySelector('span');
+      span.textContent = '已复制';
+      setTimeout(() => { span.textContent = '复制'; }, 1500);
+    });
+    return;
+  }
   const aggBtn = e.target.closest('.popup-agg-btn');
   if (aggBtn) { togglePopupAggregate(); return; }
   const btn = e.target.closest('.json-view-btn');
@@ -1045,7 +1065,7 @@ function buildAggregatedCards(ids) {
         <span class="agg-card-title">#${rank + 1}</span>
         <span class="agg-card-meta">${fmtBytes(it.size)} · ${typeLabel}</span>
         ${locHtml}
-        ${viewGraphBtn(it.id)}
+        ${copyJsonBtn(it.id)}${viewGraphBtn(it.id)}
       </div>
       <div class="agg-card-body">${renderJsonTree(it.parsed)}</div>
     </div>`;
